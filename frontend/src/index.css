@@ -1,8 +1,6 @@
-* {
+/* Global reset — App.css handles all styling */
+*, *::before, *::after {
   box-sizing: border-box;
-}
-
-body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  padding: 0;
 }
