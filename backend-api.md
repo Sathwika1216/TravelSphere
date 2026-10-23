@@ -65,6 +65,18 @@ This endpoint generates a travel itinerary based on the user's travel preference
 | `interests` | Array | List of travel interests |
 
 ---
+### Trip and Traveller Data Structures
+
+The trip-planning request uses the following fields:
+
+- `destination`: Destination for the trip.
+- `days`: Number of trip days.
+- `budget`: Trip budget.
+- `interests`: List of selected travel interests.
+- `travellers`: List of selected traveller objects. In the frontend, each object contains `id` and `name`.
+- `traveller_count`: Number of travellers, used by the backend when the `travellers` list is empty or omitted.
+
+The frontend builds the `travellers` list from the selected traveller records and sends both `travellers` and `traveller_count` in the request to `POST /api/travel/plan`.
 
 ## Input Validation
 
