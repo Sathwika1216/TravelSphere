@@ -72,6 +72,12 @@ The travel assistant chat (`frontend/src/App.jsx` and `frontend/src/App.css`) pr
 - **Message-entry animation & conversation flow:** Outgoing user prompts (`.chat-message.user`) and incoming agent replies (`.chat-message.agent`) are appended sequentially to `chatMessages` and rendered as `.message-bubble` items within the scrollable `.chat-thread` container, alongside automatic agent summary messages when a trip plan is generated (`handleSubmit`) and smooth scroll transitions (`scrollIntoView({ behavior: 'smooth' })`).
 - **Reduced-motion support:** A `@media (prefers-reduced-motion: reduce)` media query in `frontend/src/App.css` overrides `animation-duration: 0.01ms !important`, `animation-iteration-count: 1 !important`, `transition-duration: 0.01ms !important`, and `scroll-behavior: auto !important` across `*, *::before, *::after`, disabling continuous keyframe animations (such as `blink`, `pulse-dot`, `spin`, and `float`) and smooth-scroll motion for users who prefer reduced motion.
 
+## Cost calculation utility
+
+The trip cost calculation utility (`calculate_cost_breakdown` in `itinerary_generator.py` and `TripCostBreakdown` in `frontend/src/App.jsx`) provides equal expense splitting for group travel:
+
+- **Equal expense splitting:** Divides the total estimated trip cost equally among all travellers to determine each person's individual share (for example, ₹12,000 divided among 4 travellers = ₹3,000 each).
+
 ## Local setup
 
 ```bash
