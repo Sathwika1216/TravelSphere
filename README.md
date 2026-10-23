@@ -63,6 +63,14 @@ Partially implemented or missing before the fix:
 - Confirm that the mock-data fallback remains available without credentials
 - Confirm the app still works with the existing Gemini env var path and no secret leaks
 
+## Animated conversation & accessibility
+
+The travel assistant chat (`frontend/src/App.jsx` and `frontend/src/App.css`) provides visual feedback for message turns while respecting user motion preferences:
+
+- **Agent typing indicator:** When a user submits a chat prompt via `handleChatSend`, `chatLoading` is set to `true` for the 700ms response window and the composer input and `Send` button are temporarily disabled. Inside `.chat-thread` (`aria-live="polite"`), a `.chat-message.agent.typing-message` element renders `.message-bubble.typing-bubble` (`aria-label="Typing indicator"`) containing three `<span>` dots animated with `@keyframes blink` (`1.2s infinite ease-in-out`) and staggered `animation-delay`s (`0s`, `0.2s`, and `0.4s`), scaling between `0.7` (`opacity: 0.5`) and `1` (`opacity: 1`).
+- **Message-entry animation & conversation flow:** Outgoing user prompts (`.chat-message.user`) and incoming agent replies (`.chat-message.agent`) are appended sequentially to `chatMessages` and rendered as `.message-bubble` items within the scrollable `.chat-thread` container, alongside automatic agent summary messages when a trip plan is generated (`handleSubmit`) and smooth scroll transitions (`scrollIntoView({ behavior: 'smooth' })`).
+- **Reduced-motion support:** A `@media (prefers-reduced-motion: reduce)` media query in `frontend/src/App.css` overrides `animation-duration: 0.01ms !important`, `animation-iteration-count: 1 !important`, `transition-duration: 0.01ms !important`, and `scroll-behavior: auto !important` across `*, *::before, *::after`, disabling continuous keyframe animations (such as `blink`, `pulse-dot`, `spin`, and `float`) and smooth-scroll motion for users who prefer reduced motion.
+
 ## Local setup
 
 ```bash
