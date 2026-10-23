@@ -39,6 +39,7 @@ Completed locally in the current repository:
 - React frontend trip planner with interest chips and itinerary results
 - Indicative INR formatting and total-cost summary
 - Cost breakdown and multi-traveller trip inputs added for the Week 1 completion work
+- The trip summary groups major expenses such as transport, accommodation, food, and activities, then shows a total trip estimate and a per-person share based on the selected traveller count
 
 Partially implemented or missing before the fix:
 
