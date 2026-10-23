@@ -1,7 +1,6 @@
 import json
 import os
 
-# ── Prompt template for AI model ──────────────────────────────────────────────
 PROMPT_TEMPLATE = """
 You are an expert AI travel agent for Indian destinations.
 
@@ -47,11 +46,10 @@ Schema:
 Return JSON only.
 """
 
-# ── Rich mock data for popular destinations ────────────────────────────────────
 MOCK_DATA = {
     "goa": {
         "destination": "Goa",
-        "days": None,  # filled dynamically
+        "days": None,
         "summary": "Goa is India's smallest state and a paradise for beach lovers, foodies, and night owls. From sun-soaked shores to colonial churches and vibrant nightlife, Goa offers a perfect blend of relaxation and excitement.",
         "daily_templates": [
             {
@@ -174,23 +172,57 @@ MOCK_DATA = {
 }
 
 
-def build_dynamic_itinerary(destination, days, budget, interests):
-    """Build a rich itinerary using mock data for known cities, dynamic for others."""
+def normalize_interests(interests):
+    if not interests:
+        return []
+    values = []
+    for item in interests:
+        normalized = str(item).strip().lower()
+        if normalized:
+            values.append(normalized)
+    return values
+
+
+def calculate_cost_breakdown(total_cost, traveller_count):
+    total_cost = float(total_cost or 0)
+    traveller_count = int(traveller_count or 1)
+
+    if traveller_count < 1:
+        raise ValueError("Traveller count must be at least 1.")
+    if total_cost < 0:
+        raise ValueError("Total trip cost must be non-negative.")
+
+    transport = round(total_cost * 0.35)
+    accommodation = round(total_cost * 0.30)
+    food = round(total_cost * 0.20)
+    activities = max(0, int(round(total_cost - transport - accommodation - food)))
+    total = transport + accommodation + food + activities
+
+    return {
+        "transport": int(transport),
+        "accommodation": int(accommodation),
+        "food": int(food),
+        "activities": int(activities),
+        "total": int(total),
+        "traveller_count": int(traveller_count),
+        "per_person": int(round(total / traveller_count)) if traveller_count else 0,
+    }
+
+
+def build_dynamic_itinerary(destination, days, budget, interests, travellers=None):
     key = destination.strip().lower()
     mock = MOCK_DATA.get(key, MOCK_DATA["default"])
-
+    normalized_interests = normalize_interests(interests)
     templates = mock.get("daily_templates", None)
-    daily_cost = budget // max(days, 1)
+    daily_cost = max(1, int(budget // max(days, 1)))
 
     itinerary = []
     for day_num in range(1, days + 1):
         if templates:
-            # Cycle through templates if days > templates available
             tpl = templates[(day_num - 1) % len(templates)].copy()
             tpl["day"] = day_num
             tpl["estimated_cost"] = min(daily_cost, tpl.get("estimated_cost", daily_cost))
         else:
-            # Generic dynamic day based on interests
             activity_map = {
                 "beaches": ["Beach relaxation", "Swimming", "Water sports"],
                 "food": ["Local food tour", "Street food tasting", "Restaurant hopping"],
@@ -203,8 +235,8 @@ def build_dynamic_itinerary(destination, days, budget, interests):
             }
             chosen_activities = []
             chosen_places = []
-            for interest in (interests if interests else ["sightseeing"]):
-                acts = activity_map.get(interest.lower(), [f"{interest.capitalize()} activity"])
+            for interest in normalized_interests or ["sightseeing"]:
+                acts = activity_map.get(interest, [f"{interest.capitalize()} activity"])
                 chosen_activities.extend(acts[:1])
                 chosen_places.append(f"{destination} {interest.capitalize()} Spot")
 
@@ -212,8 +244,8 @@ def build_dynamic_itinerary(destination, days, budget, interests):
                 "day": day_num,
                 "theme": f"Day {day_num} — Explore {destination}",
                 "morning": f"Morning visit to a famous {destination} landmark.",
-                "afternoon": f"Afternoon — {'and '.join(chosen_activities[:2]) if chosen_activities else 'sightseeing'}.",
-                "evening": f"Evening relaxation and local dining.",
+                "afternoon": f"Afternoon — {' and '.join(chosen_activities[:2]) if chosen_activities else 'sightseeing'}.",
+                "evening": "Evening relaxation and local dining.",
                 "places": chosen_places[:3] if chosen_places else [f"{destination} City Center"],
                 "activities": chosen_activities[:3] if chosen_activities else ["Sightseeing"],
                 "food": ["Local Cuisine", "Street Food", "Regional Specialty"],
@@ -222,19 +254,35 @@ def build_dynamic_itinerary(destination, days, budget, interests):
 
         itinerary.append(tpl)
 
+    total_estimated_cost = sum(day["estimated_cost"] for day in itinerary)
+    traveller_names = []
+    if travellers:
+        for traveller in travellers:
+            if isinstance(traveller, dict):
+                name = traveller.get("name") or traveller.get("full_name")
+                if name:
+                    traveller_names.append(str(name).strip())
+            elif traveller:
+                traveller_names.append(str(traveller).strip())
+    if not traveller_names:
+        traveller_names = ["Traveller 1"]
+    traveller_count = len(traveller_names)
+
     return {
         "destination": mock.get("destination") or destination,
         "days": days,
         "summary": mock.get("summary", f"An amazing {days}-day trip to {destination}."),
         "itinerary": itinerary,
-        "total_estimated_cost": sum(d["estimated_cost"] for d in itinerary),
+        "total_estimated_cost": total_estimated_cost,
+        "travellers": traveller_names,
+        "traveller_count": traveller_count,
+        "cost_breakdown": calculate_cost_breakdown(total_estimated_cost, traveller_count),
         "recommendations": mock.get("recommendations", MOCK_DATA["default"]["recommendations"]),
         "tips": mock.get("tips", MOCK_DATA["default"]["tips"])
     }
 
 
-def generate_with_gemini(destination, days, budget, interests):
-    """Try to generate itinerary using Gemini AI (google-genai SDK)."""
+def generate_with_gemini(destination, days, budget, interests, travellers=None):
     try:
         from google import genai
         api_key = os.environ.get("GEMINI_API_KEY", "")
@@ -242,21 +290,18 @@ def generate_with_gemini(destination, days, budget, interests):
             return None
 
         client = genai.Client(api_key=api_key)
-
         prompt = PROMPT_TEMPLATE.format(
             destination=destination,
             days=days,
             budget=budget,
             interests=", ".join(interests) if interests else "general sightseeing"
         )
-
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt
         )
         raw = response.text.strip()
 
-        # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -264,36 +309,47 @@ def generate_with_gemini(destination, days, budget, interests):
         raw = raw.strip()
 
         data = json.loads(raw)
+        if isinstance(data, dict):
+            traveller_names = []
+            if travellers:
+                for traveller in travellers:
+                    if isinstance(traveller, dict):
+                        name = traveller.get("name") or traveller.get("full_name")
+                        if name:
+                            traveller_names.append(str(name).strip())
+                    elif traveller:
+                        traveller_names.append(str(traveller).strip())
+            if not traveller_names:
+                traveller_names = ["Traveller 1"]
+            data.setdefault("travellers", traveller_names)
+            data.setdefault("traveller_count", len(traveller_names))
+            if "cost_breakdown" not in data:
+                data["cost_breakdown"] = calculate_cost_breakdown(
+                    data.get("total_estimated_cost", budget),
+                    data.get("traveller_count", len(traveller_names)),
+                )
         return data
-
     except Exception as e:
         print(f"[Gemini] Error: {e}")
         return None
 
 
-def generate_itinerary(destination, days, budget, interests):
-    """
-    Main entry point.
-    1. Try Gemini AI (if GEMINI_API_KEY is set).
-    2. Fall back to rich mock data.
-    """
-    # Attempt real AI generation
-    ai_result = generate_with_gemini(destination, days, budget, interests)
+def generate_itinerary(destination, days, budget, interests, travellers=None):
+    ai_result = generate_with_gemini(destination, days, budget, interests, travellers=travellers)
     if ai_result:
         print(f"[AI] Generated itinerary for {destination} using Gemini.")
         return ai_result
 
-    # Fall back to rich mock data
     print(f"[Mock] Generating itinerary for {destination} using mock data.")
-    return build_dynamic_itinerary(destination, days, budget, interests)
+    return build_dynamic_itinerary(destination, days, budget, interests, travellers=travellers)
 
 
-# ── CLI test ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     result = generate_itinerary(
         destination="Goa",
         days=3,
         budget=15000,
-        interests=["beaches", "food", "nightlife"]
+        interests=["beaches", "food", "nightlife"],
+        travellers=[{"name": "Asha"}, {"name": "Rohan"}, {"name": "Meera"}]
     )
     print(json.dumps(result, indent=2))

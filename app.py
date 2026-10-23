@@ -4,7 +4,6 @@ Flask API that exposes /api/travel/plan endpoint.
 """
 
 import os
-import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -28,11 +27,7 @@ def health():
 
 @app.route("/api/travel/plan", methods=["POST"])
 def plan_trip():
-    """
-    POST /api/travel/plan
-    Body: { destination, days, budget, interests[] }
-    Returns: itinerary JSON
-    """
+    """POST /api/travel/plan. Accepts destination, dates, budget, interests and travellers."""
     try:
         data = request.get_json(force=True)
 
@@ -43,8 +38,8 @@ def plan_trip():
         days = int(data.get("days", 3))
         budget = int(data.get("budget", 10000))
         interests = data.get("interests", [])
+        travellers = data.get("travellers", [])
 
-        # Validate
         if not destination:
             return jsonify({"error": "Destination is required"}), 400
         if days < 1 or days > 30:
@@ -52,13 +47,21 @@ def plan_trip():
         if budget < 100:
             return jsonify({"error": "Budget must be at least ₹100"}), 400
 
-        print(f"\n[API] Plan request → destination={destination}, days={days}, budget={budget}, interests={interests}")
+        traveller_count = len(travellers) if travellers else int(data.get("traveller_count", 1))
+        if traveller_count < 1:
+            return jsonify({"error": "At least one traveller is required."}), 400
+
+        print(
+            f"\n[API] Plan request → destination={destination}, days={days}, "
+            f"budget={budget}, interests={interests}, travellers={travellers}"
+        )
 
         result = generate_itinerary(
             destination=destination,
             days=days,
             budget=budget,
-            interests=interests
+            interests=interests,
+            travellers=travellers or [{"name": f"Traveller {index + 1}" } for index in range(traveller_count)],
         )
 
         print(f"[API] Itinerary generated for {destination} ✓")
